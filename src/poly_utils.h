@@ -19,7 +19,7 @@ Poly poly_add(Poly a, Poly b);
 
 Poly poly_mul_scalar(Poly p, double scalar);
 
-void poly_mul_inplace(Poly *a, Poly *b, Poly *res)
+void poly_mul_inplace(Poly *a, Poly *b, Poly *res);
 
 Poly poly_mul(Poly a, Poly b);
 
