@@ -18,7 +18,7 @@ Poly ring_add_mod(Poly x, Poly y, double modulus, Poly poly_mod) {
 
 Poly ring_mul_mod(Poly x, Poly y, double modulus, Poly poly_mod) {
   Poly prod; 
-  poly_mul(x, y, &prod);
+  poly_mul_inplace(x, y, &prod);
 
   Poly prod_mod = coeff_mod(prod, modulus);
   prod_mod = coeff_mod(prod_mod, modulus);
@@ -34,7 +34,7 @@ Poly ring_mul_mod(Poly x, Poly y, double modulus, Poly poly_mod) {
 
 Poly ring_mul_no_mod_q(Poly x, Poly y, Poly poly_mod) {
   Poly prod;
-  poly_mul(x, y, &prod);
+  poly_mul_inplace(x, y, &prod);
 
   Poly quot, rem;
   poly_divmod(prod, poly_mod, &quot, &rem);
@@ -53,7 +53,7 @@ Poly ring_add_no_mod_q(Poly x, Poly y, Poly poly_mod) {
 
 Poly ring_mul_poly_mod(Poly x, Poly y, Poly poly_mod) {
   Poly prod;
-  poly_mul(x, y, &prod);
+  poly_mul_inplace(x, y, &prod);
   Poly quot, rem;
   poly_divmod(prod, poly_mod, &quot, &rem);
   return rem;

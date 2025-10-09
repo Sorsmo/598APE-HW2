@@ -28,8 +28,8 @@ EvalKey evaluate_keygen(SecretKey sk, size_t n, double q, Poly poly_mod,
   Poly e = gen_normal_poly(n, 0.0, 1.0);
 
   Poly s2;
-  poly_mul(sk, sk, &s2);
-  
+  poly_mul_inplace(sk, sk, &s2);
+
   Poly secret_scaled = poly_mul_scalar(s2, p);
 
   Poly neg_a = poly_mul_scalar(a, -1.0);
