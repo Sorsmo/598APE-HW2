@@ -70,6 +70,22 @@ Poly poly_mul_scalar(Poly p, double scalar) {
   return res;
 }
 
+Poly poly_mul(Poly a, Poly b) {
+  Poly res = create_poly();
+
+  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
+    if (fabs(a.coeffs[i]) > 1e-9) {
+      for (int j = 0; j < MAX_POLY_DEGREE; j++) {
+        if (fabs(b.coeffs[j]) > 1e-9) {
+          assert(i + j < MAX_POLY_DEGREE);
+          res.coeffs[i + j] += a.coeffs[i] * b.coeffs[j];
+        }
+      }
+    }
+  }
+  return res;
+}
+
 void poly_mul_inplace(Poly *a, Poly *b, Poly *res) {
   for (int i = 0; i < MAX_POLY_DEGREE; i++) {
     res->coeffs[i] = 0.0;
@@ -85,22 +101,6 @@ void poly_mul_inplace(Poly *a, Poly *b, Poly *res) {
       }
     }
   }
-}
-
-Poly poly_mul(Poly a, Poly b) {
-  Poly res = create_poly();
-
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-    if (fabs(a.coeffs[i]) > 1e-9) {
-      for (int j = 0; j < MAX_POLY_DEGREE; j++) {
-        if (fabs(b.coeffs[j]) > 1e-9) {
-          assert(i + j < MAX_POLY_DEGREE);
-          res.coeffs[i + j] += a.coeffs[i] * b.coeffs[j];
-        }
-      }
-    }
-  }
-  return res;
 }
 
 void poly_divmod(Poly num, Poly den, Poly *quot, Poly *rem) {
