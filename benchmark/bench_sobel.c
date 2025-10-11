@@ -96,12 +96,11 @@ Ciphertext encode_zero(int64_t q, Poly poly_mod) {
 
 static void sobel_fhe(Ciphertext *input_enc, Ciphertext *output_enc, int width,
                       int height, int64_t q, int64_t t, Poly poly_mod) {
-
   for (int y = 1; y < height - 1; y++) {
     for (int x = 1; x < width - 1; x++) {
       Ciphertext gx = encode_zero(q, poly_mod);
       Ciphertext gy = encode_zero(q, poly_mod);
-
+  
       for (int ky = -1; ky <= 1; ky++) {
         for (int kx = -1; kx <= 1; kx++) {
           Ciphertext pixel = input_enc[(y + ky) * width + (x + kx)];

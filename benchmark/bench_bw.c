@@ -158,6 +158,7 @@ int main(int argc, char **argv) {
   clock_t dec_start = clock();
   int64_t th1 = (t + 2) / 3;
   int64_t th2 = (2 * t + 2) / 3;
+  
   for (int i = 0; i < total_pixels; i++) {
     int64_t val = decrypt(sk, n, q, poly_mod, t, gray_enc[i]);
     if (val >= th2) {
