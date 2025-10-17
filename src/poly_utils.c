@@ -88,7 +88,7 @@ Poly poly_mul(Poly a, Poly b) {
 
 void poly_divmod(Poly num, Poly den, Poly *quot, Poly *rem) {
   // In our case `den` should always be (x^n + 1)
-  size_t n = 1u << 4;
+  size_t n = 16;
   
   *rem = num;
   for (size_t i = n; i <= poly_degree(num); ++i) {
