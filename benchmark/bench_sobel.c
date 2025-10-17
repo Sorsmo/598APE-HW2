@@ -145,15 +145,13 @@ int main(int argc, char **argv) {
 
   const char *input_path = argv[1];
 
-  // Please report runtimes on the following parameters
   size_t n = 1u << 4;
   int64_t q = 1ll << 30;
   int64_t t = 1ll << 10;
 
   printf("Loading image: %s\n", input_path);
   Image img = load_image(input_path);
-  printf("Image size: %dx%d, channels: %d\n", img.width, img.height,
-         img.channels);
+  printf("Image size: %dx%d, channels: %d\n", img.width, img.height, img.channels);
 
   uint8_t *gray = (uint8_t *)malloc(img.width * img.height * sizeof(uint8_t));
   rgb_to_grayscale(img.data, gray, img.width, img.height, img.channels);
@@ -169,58 +167,86 @@ int main(int argc, char **argv) {
   PublicKey pk = keys.pk;
   SecretKey sk = keys.sk;
 
-  printf("Encrypting grayscale image...\n");
-  Ciphertext *gray_enc =
-      (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
-  clock_t enc_start = clock();
-  for (int i = 0; i < total_pixels; i++) {
-    gray_enc[i] = encrypt(pk, n, q, poly_mod, t, gray[i]);
-  }
-  clock_t enc_end = clock();
-  double enc_time = ((double)(enc_end - enc_start)) / CLOCKS_PER_SEC;
-
-  printf("Applying FHE Sobel edge detection...\n");
-  Ciphertext *sobel_enc =
-      (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
+  const int chunk_size = 32; 
+  uint8_t *fhe_sobel = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
   clock_t fhe_start = clock();
-  sobel_fhe(gray_enc, sobel_enc, img.width, img.height, q, t, poly_mod);
+  for (int c = 0; c < img.height; c += chunk_size) {
+    int start_y;
+    if (c == 0) {
+      start_y = 0;
+    } else {
+      start_y = 1;
+    }
+
+    int end_y; 
+    if (c + chunk_size >= img.height) {
+      end_y = img.height;
+    } else {
+      end_y = chunk_size + 1;
+    }
+
+    int rows = end_y - start_y;
+
+    Ciphertext *gray_chunk_enc = (Ciphertext *)malloc(rows * img.width * sizeof(Ciphertext));
+    Ciphertext *sobel_chunk_enc = (Ciphertext *)malloc(rows * img.width * sizeof(Ciphertext));
+
+    for (int i = 0; i < rows; i++) {
+      int global_y = start_y + i;
+      for (int j = 0; j < img.width; j++) {
+        int idx = global_y * img.width + j;
+        gray_chunk_enc[i * img.width + j] = encrypt(pk, n, q, poly_mod, t, gray[idx]);
+      }
+    }
+
+    sobel_fhe(gray_chunk_enc, sobel_chunk_enc, img.width, rows, q, t, poly_mod);
+
+    int copy_start;
+    if (c == 0) {
+      copy_start = 0;
+    } else {
+      copy_start = 1;
+    }
+
+    int copy_end;
+    if (c + chunk_size >= img.height) {
+      copy_end = rows;
+    } else {
+      copy_end = rows - 1;
+    }
+
+    for (int i = copy_start; i < copy_end; i++) {
+      int global_y = start_y + i;
+      for (int j = 0; j < img.width; j++) {
+        int idx = global_y * img.width + j;
+        int64_t val = decrypt(sk, n, q, poly_mod, t, sobel_chunk_enc[i * img.width + j]);
+        if (val > t / 2)
+          val = t - val;
+        if (val > 255)
+          val = 255;
+        fhe_sobel[idx] = (uint8_t)val;
+      }
+    }
+
+    free(gray_chunk_enc);
+    free(sobel_chunk_enc);
+  }
+
   clock_t fhe_end = clock();
   double fhe_time = ((double)(fhe_end - fhe_start)) / CLOCKS_PER_SEC;
 
-  printf("Decrypting FHE Sobel result...\n");
-  uint8_t *fhe_sobel = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
-  clock_t dec_start = clock();
-  for (int i = 0; i < total_pixels; i++) {
-    int64_t val = decrypt(sk, n, q, poly_mod, t, sobel_enc[i]);
-    // Restore negative `gx + gy`
-    if (val > t / 2)
-      val = t - val;
-    if (val > 255)
-      val = 255;
-    fhe_sobel[i] = (uint8_t)val;
-  }
-  clock_t dec_end = clock();
-  double dec_time = ((double)(dec_end - dec_start)) / CLOCKS_PER_SEC;
-
-  printf("Computing plaintext Sobel edge detection...\n");
-  uint8_t *plain_sobel = (uint8_t *)calloc(total_pixels, sizeof(uint8_t));
+  // Compute plaintext Sobel
+  uint8_t *plain_sobel = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
   clock_t plain_start = clock();
   sobel_plain(gray, plain_sobel, img.width, img.height);
   clock_t plain_end = clock();
   double plain_time = ((double)(plain_end - plain_start)) / CLOCKS_PER_SEC;
 
   printf("\n=== Results ===\n");
-  printf("Encryption time: %.4f s (%.2f ms/pixel)\n", enc_time,
-         enc_time * 1000.0 / total_pixels);
   printf("FHE Sobel time: %.4f s\n", fhe_time);
-  printf("Decryption time: %.4f s (%.2f ms/pixel)\n", dec_time,
-         dec_time * 1000.0 / total_pixels);
   printf("Plaintext Sobel time: %.4f s\n", plain_time);
 
-  save_image("output/sobel_fhe.png",
-             (Image){fhe_sobel, img.width, img.height, 1});
-  save_image("output/sobel_plain.png",
-             (Image){plain_sobel, img.width, img.height, 1});
+  save_image("output/sobel_fhe.png", (Image){fhe_sobel, img.width, img.height, 1});
+  save_image("output/sobel_plain.png", (Image){plain_sobel, img.width, img.height, 1});
   save_image("output/grayscale.png", (Image){gray, img.width, img.height, 1});
 
   printf("\nSaved outputs:\n");
@@ -228,8 +254,6 @@ int main(int argc, char **argv) {
   printf("  output/sobel_fhe.png     (FHE Sobel edges)\n");
   printf("  output/sobel_plain.png   (plaintext Sobel edges)\n");
 
-  free(gray_enc);
-  free(sobel_enc);
   free(fhe_sobel);
   free(plain_sobel);
   free(gray);
