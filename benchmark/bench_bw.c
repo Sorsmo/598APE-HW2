@@ -76,16 +76,25 @@ static void rgb_to_grayscale_plain(uint8_t *input, uint8_t *output, int width,
   }
 }
 
-static void rgb_to_grayscale_fhe(Ciphertext *r_enc, Ciphertext *g_enc,
-                                 Ciphertext *b_enc, Ciphertext *output_enc,
+static void rgb_to_grayscale_fhe(Ciphertext *output_enc,
                                  int total_pixels, int64_t q, int64_t t,
-                                 Poly poly_mod) {
+                                 Poly poly_mod, Image img, size_t n,
+                                 PublicKey pk, SecretKey sk) {
   int64_t inv3 = mod_inverse(3, t);
   assert(inv3 != -1 &&
          "3 has no modular inverse modulo t; choose t coprime with 3");
+
   for (int i = 0; i < total_pixels; i++) {
-    Ciphertext sum = add_cipher(r_enc[i], g_enc[i], q, poly_mod);
-    sum = add_cipher(sum, b_enc[i], q, poly_mod);
+    uint8_t r = img.data[i * img.channels + 0];
+    uint8_t g = img.data[i * img.channels + 1];
+    uint8_t b = img.data[i * img.channels + 2];
+
+    Ciphertext r_enc = encrypt(pk, n, q, poly_mod, t, r);
+    Ciphertext g_enc = encrypt(pk, n, q, poly_mod, t, g);
+    Ciphertext b_enc = encrypt(pk, n, q, poly_mod, t, b);
+    
+    Ciphertext sum = add_cipher(r_enc, g_enc, q, poly_mod);
+    sum = add_cipher(sum, b_enc, q, poly_mod);
     output_enc[i] = mul_plain(sum, q, t, poly_mod, inv3);
   }
 }
@@ -126,53 +135,44 @@ int main(int argc, char **argv) {
   PublicKey pk = keys.pk;
   SecretKey sk = keys.sk;
 
-  printf("Encrypting RGB channels...\n");
-  Ciphertext *r_enc = (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
-  Ciphertext *g_enc = (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
-  Ciphertext *b_enc = (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
-
-  clock_t enc_start = clock();
-  for (int i = 0; i < total_pixels; i++) {
-    uint8_t r = img.data[i * img.channels + 0];
-    uint8_t g = img.data[i * img.channels + 1];
-    uint8_t b = img.data[i * img.channels + 2];
-
-    r_enc[i] = encrypt(pk, n, q, poly_mod, t, r);
-    g_enc[i] = encrypt(pk, n, q, poly_mod, t, g);
-    b_enc[i] = encrypt(pk, n, q, poly_mod, t, b);
-  }
-  clock_t enc_end = clock();
-  double enc_time = ((double)(enc_end - enc_start)) / CLOCKS_PER_SEC;
-
   printf("Applying FHE grayscale conversion (R+G+B)/3...\n");
-  Ciphertext *gray_enc =
-      (Ciphertext *)malloc(total_pixels * sizeof(Ciphertext));
+  const int64_t chunk_size = 1024;
+  Ciphertext *gray_enc_chunk = (Ciphertext *)malloc(chunk_size * sizeof(Ciphertext));
+  uint8_t *fhe_gray = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
   clock_t fhe_start = clock();
-  rgb_to_grayscale_fhe(r_enc, g_enc, b_enc, gray_enc, total_pixels, q, t,
-                       poly_mod);
+
+  for (int c = 0; c < total_pixels; c += chunk_size) {
+    int current_chunk_size = 0;
+    if (c + chunk_size <= total_pixels) {
+      current_chunk_size = chunk_size;
+    } else {
+      current_chunk_size = total_pixels - c;
+    }
+
+    Image img_chunk = {img.data + c * img.channels, img.width, current_chunk_size / img.width, img.channels};
+    rgb_to_grayscale_fhe(gray_enc_chunk, current_chunk_size, q, t, poly_mod, img_chunk, n, pk, sk);
+
+    int64_t th1 = (t + 2) / 3;
+    int64_t th2 = (2 * t + 2) / 3;
+    for (int i = 0; i < current_chunk_size; i++) {
+      int64_t val = decrypt(sk, n, q, poly_mod, t, gray_enc_chunk[i]);
+      if (val >= th2) {
+        val -= th2;
+      } else if (val >= th1) {
+        val -= th1;
+      }
+      if (val > 255)
+        val = 255;
+      if (val < 0)
+        val = 0;
+      fhe_gray[c + i] = (uint8_t)val;
+    }
+  }
+  
+  free(gray_enc_chunk);
+
   clock_t fhe_end = clock();
   double fhe_time = ((double)(fhe_end - fhe_start)) / CLOCKS_PER_SEC;
-
-  printf("Decrypting FHE grayscale result...\n");
-  uint8_t *fhe_gray = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
-  clock_t dec_start = clock();
-  int64_t th1 = (t + 2) / 3;
-  int64_t th2 = (2 * t + 2) / 3;
-  for (int i = 0; i < total_pixels; i++) {
-    int64_t val = decrypt(sk, n, q, poly_mod, t, gray_enc[i]);
-    if (val >= th2) {
-      val -= th2;
-    } else if (val >= th1) {
-      val -= th1;
-    }
-    if (val > 255)
-      val = 255;
-    if (val < 0)
-      val = 0;
-    fhe_gray[i] = (uint8_t)val;
-  }
-  clock_t dec_end = clock();
-  double dec_time = ((double)(dec_end - dec_start)) / CLOCKS_PER_SEC;
 
   printf("Computing plaintext reference grayscale...\n");
   uint8_t *plain_gray = (uint8_t *)malloc(total_pixels * sizeof(uint8_t));
@@ -204,11 +204,9 @@ int main(int argc, char **argv) {
   }
 
   printf("\n=== Results ===\n");
-  printf("Encryption time: %.4f s (%.2f ms/pixel)\n", enc_time,
-         enc_time * 1000.0 / total_pixels);
   printf("FHE grayscale conversion time: %.4f s\n", fhe_time);
-  printf("Decryption time: %.4f s (%.2f ms/pixel)\n", dec_time,
-         dec_time * 1000.0 / total_pixels);
+  // printf("Decryption time: %.4f s (%.2f ms/pixel)\n", dec_time,
+  //        dec_time * 1000.0 / total_pixels);
   printf("Plaintext grayscale time: %.4f s\n", plain_time);
   printf("L2 norm error: %.4f\n", l2_error);
   printf("Average error per pixel: %.4f\n", avg_error);
@@ -229,10 +227,6 @@ int main(int argc, char **argv) {
          "decrypted)\n");
   printf("  output/plaintext_grayscale.png  (plaintext reference grayscale)\n");
 
-  free(r_enc);
-  free(g_enc);
-  free(b_enc);
-  free(gray_enc);
   free(fhe_gray);
   free(plain_gray);
   free_image(img);

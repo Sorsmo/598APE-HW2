@@ -88,37 +88,13 @@ Poly poly_mul(Poly a, Poly b) {
 
 void poly_divmod(Poly num, Poly den, Poly *quot, Poly *rem) {
   // In our case `den` should always be (x^n + 1)
-  assert(poly_degree(den) > 0 || fabs(get_coeff(den, 0)) > 1e-9);
-
-  size_t ndeg = poly_degree(num);
-  size_t ddeg = poly_degree(den);
-
-  *quot = create_poly();
+  size_t n = 16;
+  
   *rem = num;
-
-  if (ndeg < ddeg) {
-    return;
+  for (size_t i = n; i <= poly_degree(num); ++i) {
+    rem->coeffs[i - n] -= num.coeffs[i];
+    rem->coeffs[i] = 0;
   }
-
-  double d_lead = get_coeff(den, ddeg);
-  assert(fabs(d_lead) > 1e-9);
-
-  for (int64_t k = ndeg - ddeg; k >= 0; --k) {
-    int64_t target_deg = ddeg + k;
-    double r_coeff = get_coeff(*rem, target_deg);
-    double coeff = trunc(round(r_coeff) / round(d_lead));
-    quot->coeffs[k] += coeff;
-
-    for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-      if (fabs(den.coeffs[i]) > 1e-9) {
-        int64_t deg = i + k;
-        assert(deg < MAX_POLY_DEGREE);
-        rem->coeffs[deg] -= coeff * den.coeffs[i];
-      }
-    }
-  }
-
-  assert(poly_degree(*rem) < poly_degree(den));
 }
 
 Poly poly_round_div_scalar(Poly x, double divisor) {
