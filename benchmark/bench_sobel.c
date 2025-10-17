@@ -175,14 +175,14 @@ int main(int argc, char **argv) {
     if (c == 0) {
       start_y = 0;
     } else {
-      start_y = 1;
+      start_y = c - 1;
     }
 
     int end_y; 
     if (c + chunk_size >= img.height) {
       end_y = img.height;
     } else {
-      end_y = chunk_size + 1;
+      end_y = c + chunk_size + 1;
     }
 
     int rows = end_y - start_y;
@@ -202,9 +202,9 @@ int main(int argc, char **argv) {
 
     int copy_start;
     if (c == 0) {
-      copy_start = 0;
+      copy_start = rows;
     } else {
-      copy_start = 1;
+      copy_start = rows - 1;
     }
 
     int copy_end;
