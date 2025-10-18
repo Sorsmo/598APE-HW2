@@ -76,9 +76,9 @@ static void rgb_to_grayscale_plain(uint8_t *input, uint8_t *output, int width,
   }
 }
 
-static void rgb_to_grayscale_fhe(Ciphertext *output_enc,
-                                 int total_pixels, int64_t q, int64_t t,
-                                 Poly poly_mod, Image img, size_t n,
+static void rgb_to_grayscale_fhe(Ciphertext *output_enc, int total_pixels,
+                                 int64_t q, int64_t t, const Poly *poly_mod,
+                                 Image img, size_t n,
                                  PublicKey pk, SecretKey sk) {
   int64_t inv3 = mod_inverse(3, t);
   assert(inv3 != -1 &&
@@ -126,12 +126,13 @@ int main(int argc, char **argv) {
 
   int total_pixels = img.width * img.height;
 
-  Poly poly_mod = create_poly();
+  Poly poly_mod;
+  poly_init(&poly_mod);
   set_coeff(&poly_mod, 0, 1);
   set_coeff(&poly_mod, n, 1);
 
   printf("Generating keys...\n");
-  KeyPair keys = keygen(n, q, poly_mod);
+  KeyPair keys = keygen(n, q, &poly_mod);
   PublicKey pk = keys.pk;
   SecretKey sk = keys.sk;
 
@@ -150,12 +151,13 @@ int main(int argc, char **argv) {
     }
 
     Image img_chunk = {img.data + c * img.channels, img.width, current_chunk_size / img.width, img.channels};
-    rgb_to_grayscale_fhe(gray_enc_chunk, current_chunk_size, q, t, poly_mod, img_chunk, n, pk, sk);
+    rgb_to_grayscale_fhe(gray_enc_chunk, current_chunk_size, q, t, &poly_mod,
+                         img_chunk, n, pk, sk);
 
     int64_t th1 = (t + 2) / 3;
     int64_t th2 = (2 * t + 2) / 3;
     for (int i = 0; i < current_chunk_size; i++) {
-      int64_t val = decrypt(sk, n, q, poly_mod, t, gray_enc_chunk[i]);
+      int64_t val = decrypt(sk, n, q, &poly_mod, t, gray_enc_chunk[i]);
       if (val >= th2) {
         val -= th2;
       } else if (val >= th1) {

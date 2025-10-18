@@ -7,23 +7,25 @@
 
 double positive_fmod(double x, double m);
 
-int64_t poly_degree(Poly p);
+int64_t poly_degree(const Poly *p);
 
-double get_coeff(Poly p, int64_t degree);
+double get_coeff(const Poly *p, int64_t degree);
 
 void set_coeff(Poly *p, int64_t degree, double value);
 
-Poly coeff_mod(Poly p, double modulus);
+void coeff_mod(const Poly *p, double modulus, Poly *out);
 
-Poly poly_add(Poly a, Poly b);
+void poly_add(const Poly *a, const Poly *b, Poly *out);
 
-Poly poly_mul_scalar(Poly p, double scalar);
+void poly_mul_scalar(const Poly *p, double scalar, Poly *out);
 
-Poly poly_mul(Poly a, Poly b);
+void poly_mul(const Poly *a, const Poly *b, Poly *out);
 
-void poly_divmod(Poly numerator, Poly denominator, Poly *quotient,
+void poly_divmod(const Poly *numerator, const Poly *denominator, Poly *quotient,
                  Poly *remainder);
 
-Poly create_poly(void);
+void poly_round_div_scalar(const Poly *x, double divisor, Poly *out);
+
+void poly_init(Poly *p);
 
 #endif

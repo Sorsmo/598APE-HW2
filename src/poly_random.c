@@ -5,7 +5,8 @@
 #include <time.h>
 
 Poly gen_binary_poly(size_t size) {
-  Poly p = create_poly();
+  Poly p;
+  poly_init(&p);
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = (rand() % 2) ? 1.0 : 0.0;
@@ -30,7 +31,8 @@ static double gen_normal(double mean, double stddev) {
 }
 
 Poly gen_normal_poly(size_t size, double mean, double stddev) {
-  Poly p = create_poly();
+  Poly p;
+  poly_init(&p);
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = round(gen_normal(mean, stddev));
@@ -42,7 +44,8 @@ Poly gen_normal_poly(size_t size, double mean, double stddev) {
 }
 
 Poly gen_uniform_poly(size_t size, double modulus) {
-  Poly p = create_poly();
+  Poly p;
+  poly_init(&p);
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = ((double)rand() / RAND_MAX) * modulus;

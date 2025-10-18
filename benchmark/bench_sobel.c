@@ -87,19 +87,19 @@ static void sobel_plain(uint8_t *input, uint8_t *output, int width,
   }
 }
 
-Ciphertext encode_zero(int64_t q, Poly poly_mod) {
+Ciphertext encode_zero(int64_t q) {
   Ciphertext ct;
-  ct.c0 = encode_plain_integer(q, 0);
-  ct.c1 = encode_plain_integer(q, 0);
+  encode_plain_integer(q, 0, &ct.c0);
+  encode_plain_integer(q, 0, &ct.c1);
   return ct;
 }
 
 static void sobel_fhe(Ciphertext *input_enc, Ciphertext *output_enc, int width,
-                      int height, int64_t q, int64_t t, Poly poly_mod) {
+                      int height, int64_t q, int64_t t, const Poly *poly_mod) {
   for (int y = 1; y < height - 1; y++) {
     for (int x = 1; x < width - 1; x++) {
-      Ciphertext gx = encode_zero(q, poly_mod);
-      Ciphertext gy = encode_zero(q, poly_mod);
+      Ciphertext gx = encode_zero(q);
+      Ciphertext gy = encode_zero(q);
   
       for (int ky = -1; ky <= 1; ky++) {
         for (int kx = -1; kx <= 1; kx++) {
@@ -124,7 +124,7 @@ static void sobel_fhe(Ciphertext *input_enc, Ciphertext *output_enc, int width,
     }
   }
 
-  Ciphertext zero = encode_zero(q, poly_mod);
+  Ciphertext zero = encode_zero(q);
   for (int x = 0; x < width; x++) {
     output_enc[x] = zero;
     output_enc[(height - 1) * width + x] = zero;
@@ -157,12 +157,13 @@ int main(int argc, char **argv) {
 
   int total_pixels = img.width * img.height;
 
-  Poly poly_mod = create_poly();
+  Poly poly_mod;
+  poly_init(&poly_mod);
   set_coeff(&poly_mod, 0, 1);
   set_coeff(&poly_mod, n, 1);
 
   printf("Generating keys...\n");
-  KeyPair keys = keygen(n, q, poly_mod);
+  KeyPair keys = keygen(n, q, &poly_mod);
   PublicKey pk = keys.pk;
   SecretKey sk = keys.sk;
 
@@ -193,11 +194,13 @@ int main(int argc, char **argv) {
       int global_y = start_y + i;
       for (int j = 0; j < img.width; j++) {
         int idx = global_y * img.width + j;
-        gray_chunk_enc[i * img.width + j] = encrypt(pk, n, q, poly_mod, t, gray[idx]);
+        gray_chunk_enc[i * img.width + j] =
+            encrypt(pk, n, q, &poly_mod, t, gray[idx]);
       }
     }
 
-    sobel_fhe(gray_chunk_enc, sobel_chunk_enc, img.width, rows, q, t, poly_mod);
+    sobel_fhe(gray_chunk_enc, sobel_chunk_enc, img.width, rows, q, t,
+              &poly_mod);
 
     int copy_start;
     if (c == 0) {
@@ -217,7 +220,8 @@ int main(int argc, char **argv) {
       int global_y = start_y + i;
       for (int j = 0; j < img.width; j++) {
         int idx = global_y * img.width + j;
-        int64_t val = decrypt(sk, n, q, poly_mod, t, sobel_chunk_enc[i * img.width + j]);
+        int64_t val = decrypt(sk, n, q, &poly_mod, t,
+                              sobel_chunk_enc[i * img.width + j]);
         if (val > t / 2)
           val = t - val;
         if (val > 255)

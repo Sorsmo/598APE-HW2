@@ -14,11 +14,12 @@ int main() {
   int64_t t = 1ll << 8;
 
   // poly_mod = X^n + 1
-  Poly poly_mod = create_poly();
+  Poly poly_mod;
+  poly_init(&poly_mod);
   set_coeff(&poly_mod, 0, 1.0);
   set_coeff(&poly_mod, n, 1.0);
 
-  KeyPair keys = keygen(n, q, poly_mod);
+  KeyPair keys = keygen(n, q, &poly_mod);
   PublicKey pk = keys.pk;
   SecretKey sk = keys.sk;
 
@@ -52,8 +53,8 @@ int main() {
   int64_t cst1 = 7;
   int64_t cst2 = 5;
 
-  Ciphertext ct1 = encrypt(pk, n, q, poly_mod, t, pt1);
-  Ciphertext ct2 = encrypt(pk, n, q, poly_mod, t, pt2);
+  Ciphertext ct1 = encrypt(pk, n, q, &poly_mod, t, pt1);
+  Ciphertext ct2 = encrypt(pk, n, q, &poly_mod, t, pt2);
 
   printf("[+] Ciphertext ct1(%ld):\n\n", pt1);
   printf("\t ct1_0: [");
@@ -105,13 +106,13 @@ int main() {
   }
   printf("]\n\n");
 
-  Ciphertext ct3 = add_plain(ct1, q, t, poly_mod, cst1);
-  Ciphertext ct4 = mul_plain(ct2, q, t, poly_mod, cst2);
-  Ciphertext ct5 = add_cipher(ct3, ct4, q, poly_mod);
+  Ciphertext ct3 = add_plain(ct1, q, t, &poly_mod, cst1);
+  Ciphertext ct4 = mul_plain(ct2, q, t, &poly_mod, cst2);
+  Ciphertext ct5 = add_cipher(ct3, ct4, q, &poly_mod);
 
-  int64_t d3 = decrypt(sk, n, q, poly_mod, t, ct3);
-  int64_t d4 = decrypt(sk, n, q, poly_mod, t, ct4);
-  int64_t d5 = decrypt(sk, n, q, poly_mod, t, ct5);
+  int64_t d3 = decrypt(sk, n, q, &poly_mod, t, ct3);
+  int64_t d4 = decrypt(sk, n, q, &poly_mod, t, ct4);
+  int64_t d5 = decrypt(sk, n, q, &poly_mod, t, ct5);
 
   printf("[+] Decrypted ct3(ct1 + %ld): %ld\n", cst1, d3);
   printf("[+] Decrypted ct4(ct2 * %ld): %ld\n", cst2, d4);
@@ -119,9 +120,9 @@ int main() {
 
   int64_t expected = ((pt1 % t) * (pt2 % t)) % t;
   int64_t p = q * q;
-  EvalKey rlk = evaluate_keygen(sk, n, q, poly_mod, p);
-  Ciphertext ct7 = mul_cipher(ct1, ct2, q, t, p, poly_mod, rlk);
-  int64_t d7 = decrypt(sk, n, q, poly_mod, t, ct7);
+  EvalKey rlk = evaluate_keygen(sk, n, q, &poly_mod, p);
+  Ciphertext ct7 = mul_cipher(ct1, ct2, q, t, p, &poly_mod, rlk);
+  int64_t d7 = decrypt(sk, n, q, &poly_mod, t, ct7);
   printf("[+] Decrypted ct7(relin_v2 ct1*ct2): %ld (expected %ld)\n", d7,
          expected);
   if (d7 == expected) {
