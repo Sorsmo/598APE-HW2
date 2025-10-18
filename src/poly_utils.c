@@ -96,13 +96,32 @@ Poly poly_mul(Poly a, Poly b) {
 }
 
 void poly_divmod(Poly num, Poly den, Poly *quot, Poly *rem) {
-  // In our case `den` should always be (x^n + 1)
-  size_t n = 16;
-  
-  *rem = num;
-  for (size_t i = n; i <= poly_degree(num); ++i) {
-    rem->coeffs[i - n] -= num.coeffs[i];
-    rem->coeffs[i] = 0;
+  const double eps = 1e-9;
+  int64_t modulus_degree = poly_degree(den);
+  assert(modulus_degree > 0);
+  assert(fabs(den.coeffs[0] - 1.0) <= eps);
+  assert(fabs(den.coeffs[modulus_degree] - 1.0) <= eps);
+  for (int64_t i = 1; i < modulus_degree; ++i) {
+    assert(fabs(den.coeffs[i]) <= eps);
+  }
+
+  Poly remainder = num;
+  if (quot != NULL) {
+    *quot = create_poly();
+  }
+
+  int64_t highest_degree = poly_degree(remainder);
+  for (int64_t i = highest_degree; i >= modulus_degree; --i) {
+    double coeff = remainder.coeffs[i];
+    if (fabs(coeff) <= eps) {
+      continue;
+    }
+    remainder.coeffs[i] = 0.0;
+    remainder.coeffs[i - modulus_degree] -= coeff;
+  }
+
+  if (rem != NULL) {
+    *rem = remainder;
   }
 }
 
