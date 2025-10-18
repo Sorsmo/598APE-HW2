@@ -1,12 +1,8 @@
 # 598APE-HW2: Homomorphic Encryption
 
 ## Optimizations
-All our of useful optimizations are combined in the main branch. To access and test individual optimizations, git checkout their respective branches while in the CS598APE Docker container via ./dockerrun.sh:
-```bash
-bench_bw_mem
-bench_sobel_mem
-polydivmod
-```
+All our useful optimizations are combined in the main branch. To access and test individual optimizations, git checkout their respective commits while in the CS598APE Docker container via ./dockerrun.sh:
+
 
 This is a C implementation of a SHE scheme based on the [Fan-Vercauteren](https://eprint.iacr.org/2012/144) RLWE-based approach and [toy implementations in Python](https://bit-ml.github.io/blog/post/homomorphic-encryption-toy-implementation-in-python/). Your task is to build and run it, then consider performance improvements.
 
