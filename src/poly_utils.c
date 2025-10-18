@@ -5,9 +5,7 @@
 
 Poly create_poly(void) {
   Poly p;
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-    p.coeffs[i] = 0.0;
-  }
+  memset(p.coeffs, 0, sizeof(p.coeffs));
   return p;
 }
 
@@ -44,9 +42,11 @@ void set_coeff(Poly *p, int64_t degree, double value) {
 
 Poly coeff_mod(Poly p, double modulus) {
   Poly out = create_poly();
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-    if (fabs(p.coeffs[i]) > 1e-9) {
-      double rounded = round(p.coeffs[i]);
+  int64_t degree = poly_degree(p);
+  for (int64_t i = 0; i <= degree; i++) {
+    double coeff = p.coeffs[i];
+    if (fabs(coeff) > 1e-9) {
+      double rounded = round(coeff);
       double m = positive_fmod(rounded, modulus);
       out.coeffs[i] = m;
     }
@@ -56,7 +56,10 @@ Poly coeff_mod(Poly p, double modulus) {
 
 Poly poly_add(Poly a, Poly b) {
   Poly sum = create_poly();
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
+  int64_t deg_a = poly_degree(a);
+  int64_t deg_b = poly_degree(b);
+  int64_t max_deg = deg_a > deg_b ? deg_a : deg_b;
+  for (int64_t i = 0; i <= max_deg; i++) {
     sum.coeffs[i] = a.coeffs[i] + b.coeffs[i];
   }
   return sum;
@@ -64,7 +67,8 @@ Poly poly_add(Poly a, Poly b) {
 
 Poly poly_mul_scalar(Poly p, double scalar) {
   Poly res = create_poly();
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
+  int64_t degree = poly_degree(p);
+  for (int64_t i = 0; i <= degree; i++) {
     res.coeffs[i] = p.coeffs[i] * scalar;
   }
   return res;
@@ -73,12 +77,17 @@ Poly poly_mul_scalar(Poly p, double scalar) {
 Poly poly_mul(Poly a, Poly b) {
   Poly res = create_poly();
 
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-    if (fabs(a.coeffs[i]) > 1e-9) {
-      for (int j = 0; j < MAX_POLY_DEGREE; j++) {
-        if (fabs(b.coeffs[j]) > 1e-9) {
+  int64_t deg_a = poly_degree(a);
+  int64_t deg_b = poly_degree(b);
+
+  for (int64_t i = 0; i <= deg_a; i++) {
+    double coeff_a = a.coeffs[i];
+    if (fabs(coeff_a) > 1e-9) {
+      for (int64_t j = 0; j <= deg_b; j++) {
+        double coeff_b = b.coeffs[j];
+        if (fabs(coeff_b) > 1e-9) {
           assert(i + j < MAX_POLY_DEGREE);
-          res.coeffs[i + j] += a.coeffs[i] * b.coeffs[j];
+          res.coeffs[i + j] += coeff_a * coeff_b;
         }
       }
     }
