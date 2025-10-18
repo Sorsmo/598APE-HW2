@@ -87,19 +87,19 @@ static void sobel_plain(uint8_t *input, uint8_t *output, int width,
   }
 }
 
-Ciphertext encode_zero(int64_t q) {
+Ciphertext encode_zero(double t) {
   Ciphertext ct;
-  encode_plain_integer(q, 0, &ct.c0);
-  encode_plain_integer(q, 0, &ct.c1);
+  encode_plain_integer(t, 0, &ct.c0);
+  encode_plain_integer(t, 0, &ct.c1);
   return ct;
 }
 
 static void sobel_fhe(Ciphertext *input_enc, Ciphertext *output_enc, int width,
-                      int height, int64_t q, int64_t t, const Poly *poly_mod) {
+                      int height, double q, double t, const Poly *poly_mod) {
   for (int y = 1; y < height - 1; y++) {
     for (int x = 1; x < width - 1; x++) {
-      Ciphertext gx = encode_zero(q);
-      Ciphertext gy = encode_zero(q);
+      Ciphertext gx = encode_zero(t);
+      Ciphertext gy = encode_zero(t);
   
       for (int ky = -1; ky <= 1; ky++) {
         for (int kx = -1; kx <= 1; kx++) {
@@ -124,7 +124,7 @@ static void sobel_fhe(Ciphertext *input_enc, Ciphertext *output_enc, int width,
     }
   }
 
-  Ciphertext zero = encode_zero(q);
+  Ciphertext zero = encode_zero(t);
   for (int x = 0; x < width; x++) {
     output_enc[x] = zero;
     output_enc[(height - 1) * width + x] = zero;
@@ -145,8 +145,8 @@ int main(int argc, char **argv) {
   const char *input_path = argv[1];
 
   size_t n = 1u << 4;
-  int64_t q = 1ll << 30;
-  int64_t t = 1ll << 10;
+  double q = (double)(1ll << 30);
+  int64_t t = 1ll << 12;
 
   printf("Loading image: %s\n", input_path);
   Image img = load_image(input_path);
@@ -195,11 +195,11 @@ int main(int argc, char **argv) {
       for (int j = 0; j < img.width; j++) {
         int idx = global_y * img.width + j;
         gray_chunk_enc[i * img.width + j] =
-            encrypt(pk, n, q, &poly_mod, t, gray[idx]);
+            encrypt(pk, n, q, &poly_mod, (double)t, gray[idx]);
       }
     }
 
-    sobel_fhe(gray_chunk_enc, sobel_chunk_enc, img.width, rows, q, t,
+    sobel_fhe(gray_chunk_enc, sobel_chunk_enc, img.width, rows, q, (double)t,
               &poly_mod);
 
     int copy_start;
@@ -220,10 +220,11 @@ int main(int argc, char **argv) {
       int global_y = start_y + i;
       for (int j = 0; j < img.width; j++) {
         int idx = global_y * img.width + j;
-        int64_t val = decrypt(sk, n, q, &poly_mod, t,
+        int64_t val = decrypt(sk, n, q, &poly_mod, (double)t,
                               sobel_chunk_enc[i * img.width + j]);
         if (val > t / 2)
           val = t - val;
+        val /= 4;
         if (val > 255)
           val = 255;
         fhe_sobel[idx] = (uint8_t)val;
