@@ -11,11 +11,12 @@ double decrypt(SecretKey sk, size_t n, double q, Poly poly_mod, double t,
 
   Poly dec = create_poly();
 
-  for (int64_t i = 0; i < MAX_POLY_DEGREE; i++) {
+  int64_t degree = poly_degree(scaled_pt);
+  for (int64_t i = 0; i <= degree; i++) {
     if (fabs(scaled_pt.coeffs[i]) > 1e-9) {
       double v = round(scaled_pt.coeffs[i]);
       double result = round(t * v / q);
-      dec.coeffs[i] = positive_fmod(result, t);
+      set_coeff(&dec, i, positive_fmod(result, t));
     }
   }
 

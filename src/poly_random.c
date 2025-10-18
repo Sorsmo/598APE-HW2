@@ -9,7 +9,9 @@ Poly gen_binary_poly(size_t size) {
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = (rand() % 2) ? 1.0 : 0.0;
-    p.coeffs[i] = v;
+    if (fabs(v) > 1e-9) {
+      set_coeff(&p, (int64_t)i, v);
+    }
   }
   return p;
 }
@@ -32,7 +34,9 @@ Poly gen_normal_poly(size_t size, double mean, double stddev) {
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = round(gen_normal(mean, stddev));
-    p.coeffs[i] = v;
+    if (fabs(v) > 1e-9) {
+      set_coeff(&p, (int64_t)i, v);
+    }
   }
   return p;
 }
@@ -42,7 +46,9 @@ Poly gen_uniform_poly(size_t size, double modulus) {
 
   for (size_t i = 0; i < size && i < MAX_POLY_DEGREE; ++i) {
     double v = ((double)rand() / RAND_MAX) * modulus;
-    p.coeffs[i] = v;
+    if (fabs(v) > 1e-9) {
+      set_coeff(&p, (int64_t)i, v);
+    }
   }
   return p;
 }

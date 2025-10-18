@@ -49,15 +49,27 @@ Ciphertext mul_cipher(Ciphertext c1, Ciphertext c2, double q, double t,
   Poly c0_res = create_poly();
   Poly c1_res = create_poly();
   Poly c2_res = create_poly();
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
-    if (fabs(c0_prod.coeffs[i]) > 1e-9) {
-      c0_res.coeffs[i] = round(t * c0_prod.coeffs[i] / q);
+  int64_t deg_c0 = poly_degree(c0_prod);
+  for (int64_t i = 0; i <= deg_c0; i++) {
+    double coeff = c0_prod.coeffs[i];
+    if (fabs(coeff) > 1e-9) {
+      set_coeff(&c0_res, i, round(t * coeff / q));
     }
-    if (fabs(c1_sum.coeffs[i]) > 1e-9) {
-      c1_res.coeffs[i] = round(t * c1_sum.coeffs[i] / q);
+  }
+
+  int64_t deg_c1 = poly_degree(c1_sum);
+  for (int64_t i = 0; i <= deg_c1; i++) {
+    double coeff = c1_sum.coeffs[i];
+    if (fabs(coeff) > 1e-9) {
+      set_coeff(&c1_res, i, round(t * coeff / q));
     }
-    if (fabs(c2_prod.coeffs[i]) > 1e-9) {
-      c2_res.coeffs[i] = round(t * c2_prod.coeffs[i] / q);
+  }
+
+  int64_t deg_c2 = poly_degree(c2_prod);
+  for (int64_t i = 0; i <= deg_c2; i++) {
+    double coeff = c2_prod.coeffs[i];
+    if (fabs(coeff) > 1e-9) {
+      set_coeff(&c2_res, i, round(t * coeff / q));
     }
   }
 
@@ -71,14 +83,18 @@ Ciphertext mul_cipher(Ciphertext c1, Ciphertext c2, double q, double t,
 
   Poly div_b = create_poly();
   Poly div_a = create_poly();
-  for (int i = 0; i < MAX_POLY_DEGREE; i++) {
+  int64_t deg_b = poly_degree(prod_b);
+  for (int64_t i = 0; i <= deg_b; i++) {
     double vb = prod_b.coeffs[i];
-    double va = prod_a.coeffs[i];
     if (fabs(vb) > 1e-9) {
-      div_b.coeffs[i] = round(vb / p);
+      set_coeff(&div_b, i, round(vb / p));
     }
+  }
+  int64_t deg_a = poly_degree(prod_a);
+  for (int64_t i = 0; i <= deg_a; i++) {
+    double va = prod_a.coeffs[i];
     if (fabs(va) > 1e-9) {
-      div_a.coeffs[i] = round(va / p);
+      set_coeff(&div_a, i, round(va / p));
     }
   }
 
